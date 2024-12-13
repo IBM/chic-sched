@@ -1,11 +1,10 @@
 package demos
 
 import (
-	"math"
-	"math/rand"
-
 	"github.com/ibm/chic-sched/pkg/system"
 	"github.com/ibm/chic-sched/pkg/util"
+	"math"
+	"math/rand"
 )
 
 // PlaceBackgroungLoad : place random allocation on PEs
@@ -38,6 +37,12 @@ func PlaceBackgroungLoad(pes []*system.PE, loadFactor float64, alpha float64, be
 		}
 	}
 	return avg
+}
+
+func PlaceWeights(pes []*system.PE) {
+	for i := 0; i < len(pes); i++ {
+		pes[i].SetWeight(rand.Intn(util.MaxWeight) + util.MinWeight)
+	}
 }
 
 // ComputeAverageLoad : average utilization (non zero and non one)

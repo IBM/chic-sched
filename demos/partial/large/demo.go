@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/ibm/chic-sched/demos"
 	"github.com/ibm/chic-sched/pkg/builder"
@@ -56,6 +57,7 @@ func main() {
 
 	// misc parameters
 	lineLength := 64
+	isPrint := false
 
 	// create physical tree and servers
 	fmt.Println(strings.Repeat("=", lineLength))
@@ -78,6 +80,16 @@ func main() {
 	fmt.Println(strings.Repeat("=", lineLength))
 
 	allocateLoad(pes, capacity, loadFactor, cov, avg, alpha, beta, false)
+
+	// place random weights
+	// Seed the random number generator with the current time
+	rand.Seed(time.Now().UnixNano())
+	demos.PlaceWeights(pes)
+	for i := 0; i < len(pes); i++ {
+		fmt.Println(pes[i])
+	}
+	fmt.Println()
+
 	pTree.PercolateResources()
 	fmt.Print(pTree)
 
@@ -97,76 +109,457 @@ func main() {
 	fmt.Println(lc0)
 	fmt.Println()
 
-	// create placement group
-	fmt.Println(strings.Repeat("=", lineLength))
-	fmt.Println("Create placement group:")
-	fmt.Println(strings.Repeat("=", lineLength))
-	groupDemand, _ := util.NewAllocationCopy(demand)
-	pg := placement.NewPGroup("pg0", groupSize, groupDemand)
-	pg.AddLevelConstraint(lc1)
-	pg.AddLevelConstraint(lc0)
-	fmt.Println(pg)
-	fmt.Println()
+	defaultPolicy := true
+	ByWeightPolicy := true
+	ByWeightProductPolicy := true
+	ByFitWeightProductPolicy := true
+	ByMinWeightedAvailabilityPolicy := true
 
-	// place group
-	fmt.Println(strings.Repeat("=", lineLength))
-	fmt.Println("Place group result: (logical tree)")
-	fmt.Println(strings.Repeat("=", lineLength))
-	p := placement.NewPlacer(pTree)
-	_, err := p.PlaceGroup(pg)
-	if err != nil {
-		fmt.Println(err)
-		return
+	if defaultPolicy {
+		// create placement group
+		fmt.Println(strings.Repeat("=", lineLength))
+		fmt.Println("Default Policy (no weights)")
+		fmt.Println("Create placement group:")
+		groupDemand, _ := util.NewAllocationCopy(demand)
+		pg := placement.NewPGroup("pg0", groupSize, groupDemand)
+		pg.AddLevelConstraint(lc1)
+		pg.AddLevelConstraint(lc0)
+		if isPrint {
+			fmt.Println(pg)
+			fmt.Println()
+		}
+
+		// place group
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("Place group result: (logical tree)")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
+		p := placement.NewPlacer(pTree)
+		_, err := p.PlaceGroup(pg)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if isPrint {
+			fmt.Print(pg)
+		}
+
+		// claim partial group placement
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("Placement group after partial claim:")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
+
+		numClaimed := int(math.Ceil(fractionClaimed * float64(groupSize)))
+		pg.Claim(numClaimed, pTree)
+		if isPrint {
+			fmt.Print(pg)
+		}
+
+		fmt.Println(strings.Repeat("=", lineLength))
+		fmt.Println("Allocation on servers after partial claim:")
+		fmt.Println(strings.Repeat("=", lineLength))
+		for i := 0; i < len(pes); i++ {
+			fmt.Println(pes[i])
+		}
+		fmt.Println()
+
+		// alter system allocation state
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("System after altering allocation state:")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
+
+		loadFactor = 0.8
+		alpha = 0
+		beta = 0
+		avg = demos.ComputeAverageLoad(loadFactor, alpha, beta)
+		cov = 0.5
+
+		allocateLoad(pes, capacity, loadFactor, cov, avg, alpha, beta, true)
+		pTree.PercolateResources()
+		if isPrint {
+			for i := 0; i < len(pes); i++ {
+				fmt.Println(pes[i])
+			}
+			fmt.Println()
+		}
+
+		// place partial group
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("Partial place group result:")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
+
+		_, err = p.PlacePartialGroup(pg)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if isPrint {
+			fmt.Print(pg)
+		}
 	}
-	fmt.Print(pg)
+	if ByWeightPolicy {
+		// create placement group
+		fmt.Println(strings.Repeat("=", lineLength))
+		fmt.Println("ByWeight Policy")
+		fmt.Println("Create placement group:")
+		groupDemand, _ := util.NewAllocationCopy(demand)
+		pg := placement.NewPGroup("pg0", groupSize, groupDemand)
+		pg.AddLevelConstraint(lc1)
+		pg.AddLevelConstraint(lc0)
+		if isPrint {
+			fmt.Println(pg)
+			fmt.Println()
+		}
 
-	// claim partial group placement
-	fmt.Println(strings.Repeat("=", lineLength))
-	fmt.Println("Placement group after partial claim:")
-	fmt.Println(strings.Repeat("=", lineLength))
+		// place group
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("Place group result: (logical tree)")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
+		p := placement.NewPlacer(pTree)
+		_, err := p.PlaceGroupByWeight(pg)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if isPrint {
+			fmt.Print(pg)
+		}
 
-	numClaimed := int(math.Ceil(fractionClaimed * float64(groupSize)))
-	pg.Claim(numClaimed, pTree)
-	fmt.Print(pg)
+		// claim partial group placement
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("Placement group after partial claim:")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
 
-	fmt.Println(strings.Repeat("=", lineLength))
-	fmt.Println("Allocation on servers after partial claim:")
-	fmt.Println(strings.Repeat("=", lineLength))
-	for i := 0; i < len(pes); i++ {
-		fmt.Println(pes[i])
+		numClaimed := int(math.Ceil(fractionClaimed * float64(groupSize)))
+		pg.Claim(numClaimed, pTree)
+		if isPrint {
+			fmt.Print(pg)
+		}
+
+		fmt.Println(strings.Repeat("=", lineLength))
+		fmt.Println("Allocation on servers after partial claim:")
+		fmt.Println(strings.Repeat("=", lineLength))
+		for i := 0; i < len(pes); i++ {
+			fmt.Println(pes[i])
+		}
+		fmt.Println()
+
+		// alter system allocation state
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("System after altering allocation state:")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
+
+		loadFactor = 0.8
+		alpha = 0
+		beta = 0
+		avg = demos.ComputeAverageLoad(loadFactor, alpha, beta)
+		cov = 0.5
+
+		allocateLoad(pes, capacity, loadFactor, cov, avg, alpha, beta, true)
+		pTree.PercolateResources()
+		if isPrint {
+			for i := 0; i < len(pes); i++ {
+				fmt.Println(pes[i])
+			}
+			fmt.Println()
+		}
+
+		// place partial group
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("Partial place group result:")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
+
+		_, err = p.PlacePartialGroupByWeight(pg)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if isPrint {
+			fmt.Print(pg)
+		}
 	}
-	fmt.Println()
+	if ByWeightProductPolicy {
+		// create placement group
+		fmt.Println(strings.Repeat("=", lineLength))
+		fmt.Println("ByWeightProduct Policy")
+		fmt.Println("Create placement group:")
+		groupDemand, _ := util.NewAllocationCopy(demand)
+		pg := placement.NewPGroup("pg0", groupSize, groupDemand)
+		pg.AddLevelConstraint(lc1)
+		pg.AddLevelConstraint(lc0)
+		if isPrint {
+			fmt.Println(pg)
+			fmt.Println()
+		}
 
-	// alter system allocation state
-	fmt.Println(strings.Repeat("=", lineLength))
-	fmt.Println("System after altering allocation state:")
-	fmt.Println(strings.Repeat("=", lineLength))
+		// place group
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("Place group result: (logical tree)")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
+		p := placement.NewPlacer(pTree)
+		_, err := p.PlaceGroupByWeightProduct(pg)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if isPrint {
+			fmt.Print(pg)
+		}
 
-	loadFactor = 0.8
-	alpha = 0
-	beta = 0
-	avg = demos.ComputeAverageLoad(loadFactor, alpha, beta)
-	cov = 0.5
+		// claim partial group placement
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("Placement group after partial claim:")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
 
-	allocateLoad(pes, capacity, loadFactor, cov, avg, alpha, beta, true)
-	pTree.PercolateResources()
+		numClaimed := int(math.Ceil(fractionClaimed * float64(groupSize)))
+		pg.Claim(numClaimed, pTree)
+		if isPrint {
+			fmt.Print(pg)
+		}
 
-	for i := 0; i < len(pes); i++ {
-		fmt.Println(pes[i])
+		fmt.Println(strings.Repeat("=", lineLength))
+		fmt.Println("Allocation on servers after partial claim:")
+		fmt.Println(strings.Repeat("=", lineLength))
+		for i := 0; i < len(pes); i++ {
+			fmt.Println(pes[i])
+		}
+		fmt.Println()
+
+		// alter system allocation state
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("System after altering allocation state:")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
+
+		loadFactor = 0.8
+		alpha = 0
+		beta = 0
+		avg = demos.ComputeAverageLoad(loadFactor, alpha, beta)
+		cov = 0.5
+
+		allocateLoad(pes, capacity, loadFactor, cov, avg, alpha, beta, true)
+		pTree.PercolateResources()
+		if isPrint {
+			for i := 0; i < len(pes); i++ {
+				fmt.Println(pes[i])
+			}
+			fmt.Println()
+		}
+
+		// place partial group
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("Partial place group result:")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
+
+		_, err = p.PlacePartialGroupByWeightProduct(pg)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if isPrint {
+			fmt.Print(pg)
+		}
 	}
-	fmt.Println()
+	if ByFitWeightProductPolicy {
+		// create placement group
+		fmt.Println(strings.Repeat("=", lineLength))
+		fmt.Println("ByFitWeightProduct Policy")
+		fmt.Println("Create placement group:")
+		groupDemand, _ := util.NewAllocationCopy(demand)
+		pg := placement.NewPGroup("pg0", groupSize, groupDemand)
+		pg.AddLevelConstraint(lc1)
+		pg.AddLevelConstraint(lc0)
+		if isPrint {
+			fmt.Println(pg)
+			fmt.Println()
+		}
 
-	// place partial group
-	fmt.Println(strings.Repeat("=", lineLength))
-	fmt.Println("Partial place group result:")
-	fmt.Println(strings.Repeat("=", lineLength))
+		// place group
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("Place group result: (logical tree)")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
+		p := placement.NewPlacer(pTree)
+		_, err := p.PlaceGroupByFitWeightProduct(pg)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if isPrint {
+			fmt.Print(pg)
+		}
 
-	_, err = p.PlacePartialGroup(pg)
-	if err != nil {
-		fmt.Println(err)
-		return
+		// claim partial group placement
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("Placement group after partial claim:")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
+
+		numClaimed := int(math.Ceil(fractionClaimed * float64(groupSize)))
+		pg.Claim(numClaimed, pTree)
+		if isPrint {
+			fmt.Print(pg)
+		}
+
+		fmt.Println(strings.Repeat("=", lineLength))
+		fmt.Println("Allocation on servers after partial claim:")
+		fmt.Println(strings.Repeat("=", lineLength))
+		for i := 0; i < len(pes); i++ {
+			fmt.Println(pes[i])
+		}
+		fmt.Println()
+
+		// alter system allocation state
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("System after altering allocation state:")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
+
+		loadFactor = 0.8
+		alpha = 0
+		beta = 0
+		avg = demos.ComputeAverageLoad(loadFactor, alpha, beta)
+		cov = 0.5
+
+		allocateLoad(pes, capacity, loadFactor, cov, avg, alpha, beta, true)
+		pTree.PercolateResources()
+		if isPrint {
+			for i := 0; i < len(pes); i++ {
+				fmt.Println(pes[i])
+			}
+			fmt.Println()
+		}
+
+		// place partial group
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("Partial place group result:")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
+
+		_, err = p.PlacePartialGroupByFitWeightProduct(pg)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if isPrint {
+			fmt.Print(pg)
+		}
 	}
-	fmt.Print(pg)
+	if ByMinWeightedAvailabilityPolicy {
+		// create placement group
+		fmt.Println(strings.Repeat("=", lineLength))
+		fmt.Println("ByMinWeightedAvailability Policy")
+		fmt.Println("Create placement group:")
+		groupDemand, _ := util.NewAllocationCopy(demand)
+		pg := placement.NewPGroup("pg0", groupSize, groupDemand)
+		pg.AddLevelConstraint(lc1)
+		pg.AddLevelConstraint(lc0)
+		if isPrint {
+			fmt.Println(pg)
+			fmt.Println()
+		}
+
+		// place group
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("Place group result: (logical tree)")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
+		p := placement.NewPlacer(pTree)
+		_, err := p.PlaceGroupByMinWeightedAvailability(pg)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if isPrint {
+			fmt.Print(pg)
+		}
+
+		// claim partial group placement
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("Placement group after partial claim:")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
+
+		numClaimed := int(math.Ceil(fractionClaimed * float64(groupSize)))
+		pg.Claim(numClaimed, pTree)
+		if isPrint {
+			fmt.Print(pg)
+		}
+
+		fmt.Println(strings.Repeat("=", lineLength))
+		fmt.Println("Allocation on servers after partial claim:")
+		fmt.Println(strings.Repeat("=", lineLength))
+		for i := 0; i < len(pes); i++ {
+			fmt.Println(pes[i])
+		}
+		fmt.Println()
+
+		// alter system allocation state
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("System after altering allocation state:")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
+
+		loadFactor = 0.8
+		alpha = 0
+		beta = 0
+		avg = demos.ComputeAverageLoad(loadFactor, alpha, beta)
+		cov = 0.5
+
+		allocateLoad(pes, capacity, loadFactor, cov, avg, alpha, beta, true)
+		pTree.PercolateResources()
+		if isPrint {
+			for i := 0; i < len(pes); i++ {
+				fmt.Println(pes[i])
+			}
+			fmt.Println()
+		}
+
+		// place partial group
+		if isPrint {
+			fmt.Println(strings.Repeat("=", lineLength))
+			fmt.Println("Partial place group result:")
+			fmt.Println(strings.Repeat("=", lineLength))
+		}
+
+		_, err = p.PlacePartialGroupByMinWeightedAvailability(pg)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if isPrint {
+			fmt.Print(pg)
+		}
+	}
 }
 
 // allocateLoad : allocate some random load on the servers

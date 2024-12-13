@@ -207,7 +207,7 @@ func (node *Node) GetLeavesDepth() (nodeValue []*NodeValue) {
 // e.g. A -> ( C -> ( D ) B )
 func (n *Node) String() string {
 	var b bytes.Buffer
-	b.WriteString(n.GetID())
+	b.WriteString(fmt.Sprintf("%s ", n.GetID()))
 	if !n.IsLeaf() {
 		b.WriteString(" -> ( ")
 		// order children by name

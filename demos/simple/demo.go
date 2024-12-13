@@ -3,8 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/ibm/chic-sched/demos"
+	"math/rand"
 	"os"
 	"strconv"
+	"strings"
+	"time"
 	"unsafe"
 
 	"k8s.io/klog/v2"
@@ -29,6 +33,8 @@ func main() {
 	flag.Parse()
 	defer klog.Flush()
 
+	isPrint := false
+
 	// parameters
 	numResources := 2
 	maxLevel := 2
@@ -36,6 +42,9 @@ func main() {
 	serverCapacity := []int{16, 256}
 	groupSize := 4
 	demand := []int{4, 32}
+
+	// misc parameters
+	lineLength := 64
 
 	groupDemand, _ := util.NewAllocationCopy(demand)
 
@@ -68,6 +77,17 @@ func main() {
 	pes[2].GetAllocated().Scale(1)
 	pes[3].GetAllocated().Scale(2)
 	pes[4].GetAllocated().Scale(3)
+	for i := 0; i < numServers; i++ {
+		fmt.Println(pes[i])
+	}
+	fmt.Println()
+
+	// place random weights
+	// Seed the random number generator with the current time
+	rand.Seed(time.Now().UnixNano())
+	fmt.Print("Place some weights: ")
+	fmt.Println()
+	demos.PlaceWeights(pes)
 	for i := 0; i < numServers; i++ {
 		fmt.Println(pes[i])
 	}
@@ -108,36 +128,247 @@ func main() {
 	fmt.Println(lc0)
 	fmt.Println()
 
-	// create placement group
-	fmt.Println("Create placement group:")
-	pg := placement.NewPGroup("pg0", groupSize, groupDemand)
-	pg.AddLevelConstraint(lc1)
-	pg.AddLevelConstraint(lc0)
+	defaultPolicy := true
+	ByWeightPolicy := true
+	ByWeightProductPolicy := true
+	ByFitWeightProductPolicy := true
+	ByMinWeightedAvailability := true
 
-	// place group
-	p := placement.NewPlacer(pTree)
-	_, err := p.PlaceGroup(pg)
-	if err != nil {
-		fmt.Println(err)
-		return
+	if defaultPolicy {
+		// create placement group
+		fmt.Println(strings.Repeat("=", lineLength))
+		fmt.Println("Default Strategy (no weights)")
+		fmt.Println("Create placement group:")
+		pg := placement.NewPGroup("pg0", groupSize, groupDemand)
+		pg.AddLevelConstraint(lc1)
+		pg.AddLevelConstraint(lc0)
+
+		// place group
+		p := placement.NewPlacer(pTree)
+		_, err := p.PlaceGroup(pg)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if isPrint {
+			fmt.Print(pg)
+		}
+
+		// allocate resources
+		if isPrint {
+			fmt.Println("Allocate logical tree:")
+		}
+		pg.ClaimAll(pTree)
+
+		if isPrint {
+			fmt.Print(pTree)
+			fmt.Print(pg)
+		}
+
+		fmt.Println("Servers:")
+		for i := 0; i < numServers; i++ {
+			fmt.Println(pes[i])
+		}
+		fmt.Println()
+
+		// de-allocate resources
+		if isPrint {
+			fmt.Println("DeAllocate logical tree:")
+		}
+		pg.UnClaimAll(pTree)
+		if isPrint {
+			fmt.Print(pTree)
+			fmt.Print(pg)
+		}
 	}
-	fmt.Print(pg)
+	if ByWeightPolicy {
+		// create placement group
+		fmt.Println(strings.Repeat("=", lineLength))
+		fmt.Println("ByWeight Strategy")
+		fmt.Println("Create placement group:")
+		pg := placement.NewPGroup("pg0", groupSize, groupDemand)
+		pg.AddLevelConstraint(lc1)
+		pg.AddLevelConstraint(lc0)
 
-	// allocate resources
-	fmt.Println("Allocate logical tree:")
-	pg.ClaimAll(pTree)
-	fmt.Print(pTree)
-	fmt.Print(pg)
+		// place group
+		p := placement.NewPlacer(pTree)
+		_, err := p.PlaceGroupByWeight(pg)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if isPrint {
+			fmt.Print(pg)
+		}
 
-	fmt.Println("Servers:")
-	for i := 0; i < numServers; i++ {
-		fmt.Println(pes[i])
+		// allocate resources
+		if isPrint {
+			fmt.Println("Allocate logical tree:")
+		}
+		pg.ClaimAll(pTree)
+
+		if isPrint {
+			fmt.Print(pTree)
+			fmt.Print(pg)
+		}
+
+		fmt.Println("Servers:")
+		for i := 0; i < numServers; i++ {
+			fmt.Println(pes[i])
+		}
+		fmt.Println()
+
+		// de-allocate resources
+		if isPrint {
+			fmt.Println("DeAllocate logical tree:")
+		}
+		pg.UnClaimAll(pTree)
+		if isPrint {
+			fmt.Print(pTree)
+			fmt.Print(pg)
+		}
 	}
-	fmt.Println()
+	if ByWeightProductPolicy {
+		// create placement group
+		fmt.Println(strings.Repeat("=", lineLength))
+		fmt.Println("ByWeightProduct Strategy")
+		fmt.Println("Create placement group:")
+		pg := placement.NewPGroup("pg0", groupSize, groupDemand)
+		pg.AddLevelConstraint(lc1)
+		pg.AddLevelConstraint(lc0)
 
-	// de-allocate resources
-	fmt.Println("DeAllocate logical tree:")
-	pg.UnClaimAll(pTree)
-	fmt.Print(pTree)
-	fmt.Print(pg)
+		// place group
+		p := placement.NewPlacer(pTree)
+		_, err := p.PlaceGroupByWeightProduct(pg)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if isPrint {
+			fmt.Print(pg)
+		}
+
+		// allocate resources
+		if isPrint {
+			fmt.Println("Allocate logical tree:")
+		}
+		pg.ClaimAll(pTree)
+
+		if isPrint {
+			fmt.Print(pTree)
+			fmt.Print(pg)
+		}
+
+		fmt.Println("Servers:")
+		for i := 0; i < numServers; i++ {
+			fmt.Println(pes[i])
+		}
+		fmt.Println()
+
+		// de-allocate resources
+		if isPrint {
+			fmt.Println("DeAllocate logical tree:")
+		}
+		pg.UnClaimAll(pTree)
+		if isPrint {
+			fmt.Print(pTree)
+			fmt.Print(pg)
+		}
+	}
+	if ByFitWeightProductPolicy {
+		// create placement group
+		fmt.Println(strings.Repeat("=", lineLength))
+		fmt.Println("ByFitWeightProduct Strategy")
+		fmt.Println("Create placement group:")
+		pg := placement.NewPGroup("pg0", groupSize, groupDemand)
+		pg.AddLevelConstraint(lc1)
+		pg.AddLevelConstraint(lc0)
+
+		// place group
+		p := placement.NewPlacer(pTree)
+		_, err := p.PlaceGroupByFitWeightProduct(pg)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if isPrint {
+			fmt.Print(pg)
+		}
+
+		// allocate resources
+		if isPrint {
+			fmt.Println("Allocate logical tree:")
+		}
+		pg.ClaimAll(pTree)
+
+		if isPrint {
+			fmt.Print(pTree)
+			fmt.Print(pg)
+		}
+
+		fmt.Println("Servers:")
+		for i := 0; i < numServers; i++ {
+			fmt.Println(pes[i])
+		}
+		fmt.Println()
+
+		// de-allocate resources
+		if isPrint {
+			fmt.Println("DeAllocate logical tree:")
+		}
+		pg.UnClaimAll(pTree)
+		if isPrint {
+			fmt.Print(pTree)
+			fmt.Print(pg)
+		}
+		fmt.Println(strings.Repeat("=", lineLength))
+	}
+	if ByMinWeightedAvailability {
+		// create placement group
+		fmt.Println(strings.Repeat("=", lineLength))
+		fmt.Println("ByMinWeightedAvailability Strategy")
+		fmt.Println("Create placement group:")
+		pg := placement.NewPGroup("pg0", groupSize, groupDemand)
+		pg.AddLevelConstraint(lc1)
+		pg.AddLevelConstraint(lc0)
+
+		// place group
+		p := placement.NewPlacer(pTree)
+		_, err := p.PlaceGroupByMinWeightedAvailability(pg)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if isPrint {
+			fmt.Print(pg)
+		}
+
+		// allocate resources
+		if isPrint {
+			fmt.Println("Allocate logical tree:")
+		}
+		pg.ClaimAll(pTree)
+
+		if isPrint {
+			fmt.Print(pTree)
+			fmt.Print(pg)
+		}
+
+		fmt.Println("Servers:")
+		for i := 0; i < numServers; i++ {
+			fmt.Println(pes[i])
+		}
+		fmt.Println()
+
+		// de-allocate resources
+		if isPrint {
+			fmt.Println("DeAllocate logical tree:")
+		}
+		pg.UnClaimAll(pTree)
+		if isPrint {
+			fmt.Print(pTree)
+			fmt.Print(pg)
+		}
+		fmt.Println(strings.Repeat("=", lineLength))
+	}
 }

@@ -81,15 +81,19 @@ func (pTree *PTree) PercolateResources() {
 		pe := (*system.PE)(unsafe.Pointer(leaf.Entity))
 		allocated := pe.GetAllocated()
 		capacity := pe.GetCapacity()
+		weight := pe.GetWeight()
 		path := leaf.GetPathToRoot()
 		for i, node := range path {
 			pNode := (*PNode)(unsafe.Pointer(node))
+
 			if i == 0 {
 				pNode.allocated = allocated.Clone()
 				pNode.capacity = capacity.Clone()
+				pNode.AddWeight(weight)
 			} else {
 				pNode.allocated.Add(allocated)
 				pNode.capacity.Add(capacity)
+				pNode.AddWeight(weight)
 			}
 		}
 	}
@@ -142,6 +146,7 @@ func (pTree *PTree) CopyByLeafIDs(leafIDs []string) *PTree {
 
 	// initialize
 	numResources := pRoot.GetNumResources()
+
 	leavesMap := pTree.GetLeavesMap()
 	var pRootCopy *PNode
 	allNodes := make(map[string]*PNode)
@@ -174,6 +179,7 @@ func (pTree *PTree) CopyByLeafIDs(leafIDs []string) *PTree {
 			curNodeCopy := NewPNode(node, 0, numResources)
 			curNodeCopy.SetValue(curNode.GetValue())
 			curNodeCopy.SetLevel((*PNode)(unsafe.Pointer(curNode)).GetLevel())
+			curNodeCopy.SetWeight((*PNode)(unsafe.Pointer(curNode)).GetWeight())
 			allNodes[id] = curNodeCopy
 			// check if we are at the root node, otherwise link to parent
 			if prevNode == nil {

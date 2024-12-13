@@ -3,11 +3,10 @@ package builder
 import (
 	"encoding/json"
 	"fmt"
-	"unsafe"
-
 	"github.com/ibm/chic-sched/pkg/system"
 	"github.com/ibm/chic-sched/pkg/topology"
 	"github.com/ibm/chic-sched/pkg/util"
+	"unsafe"
 )
 
 // CreateTopologyTreeFromJson : create a PTree fron JSON string

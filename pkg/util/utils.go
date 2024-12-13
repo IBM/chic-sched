@@ -28,7 +28,7 @@ func CeilDivide(x, y int) int {
 	return int(float64(x)/float64(y) + 0.5)
 }
 
-// BoolValue : returns +1 or -1 if argument if true or false, respectively
+// BoolValue : returns +1 or -1 if argument is true or false, respectively
 func BoolValue(b bool) int {
 	if b {
 		return 1

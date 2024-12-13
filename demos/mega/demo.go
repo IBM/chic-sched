@@ -2,12 +2,11 @@ package main
 
 import (
 	"fmt"
-	"strings"
-
 	"github.com/ibm/chic-sched/demos"
 	"github.com/ibm/chic-sched/pkg/builder"
 	"github.com/ibm/chic-sched/pkg/placement"
 	"github.com/ibm/chic-sched/pkg/util"
+	"strings"
 )
 
 // Mega system demo

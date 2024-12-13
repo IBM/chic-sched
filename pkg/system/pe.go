@@ -2,9 +2,8 @@ package system
 
 import (
 	"fmt"
-	"sort"
-
 	"github.com/ibm/chic-sched/pkg/util"
+	"sort"
 )
 
 // PE : Physical Entity
@@ -17,6 +16,8 @@ type PE struct {
 	allocated *util.Allocation
 	// hosted LEs
 	hosted map[string]*LE
+	// weight for guiding placement decision
+	weight int
 }
 
 // NewPE : create a new PE
@@ -33,7 +34,18 @@ func NewPE(id string, capacity *util.Allocation) *PE {
 		capacity:  capacity.Clone(),
 		allocated: allocated,
 		hosted:    make(map[string]*LE),
+		weight:    util.DefaultWeight,
 	}
+}
+
+// GetWeight : get the weight of this PE
+func (pe *PE) GetWeight() int {
+	return pe.weight
+}
+
+// SetWeight : set the weight of this PE
+func (pe *PE) SetWeight(weight int) {
+	pe.weight = weight
 }
 
 // GetCapacity : get resource capacity
@@ -112,6 +124,6 @@ func (pe *PE) GetHostedIDs() []string {
 
 // String : a print out of the PE
 func (pe *PE) String() string {
-	return fmt.Sprintf("PE: ID=%s; cap=%v; alloc=%v; hosted=%v", pe.GetID(), pe.capacity, pe.allocated,
+	return fmt.Sprintf("PE: ID=%s; weight=%v; cap=%v; alloc=%v; hosted=%v", pe.GetID(), pe.weight, pe.capacity, pe.allocated,
 		pe.GetHostedIDs())
 }

@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"os"
 
-	"github.com/ibm/chic-sched/pkg/builder"
+	"github.ibm.com/chic/chic-sched/pkg/builder"
 )
 
 func main() {

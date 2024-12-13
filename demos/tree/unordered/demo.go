@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ibm/chic-sched/pkg/system"
-	"github.com/ibm/chic-sched/pkg/topology"
+	"github.ibm.com/chic/chic-sched/pkg/system"
+	"github.ibm.com/chic/chic-sched/pkg/topology"
 )
 
 // Demo operating on a tree

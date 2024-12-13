@@ -2,7 +2,6 @@ package placement
 
 import (
 	"fmt"
-
 	"github.com/ibm/chic-sched/pkg/util"
 )
 

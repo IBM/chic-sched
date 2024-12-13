@@ -2,6 +2,7 @@ package topology
 
 import (
 	"fmt"
+	"math"
 	"unsafe"
 
 	"github.com/ibm/chic-sched/pkg/util"
@@ -22,6 +23,13 @@ type PNode struct {
 	numFit int
 	// number of group instances that are claimed
 	numClaimed int
+
+	// weight for guiding placement decision
+	weight int
+	// Track totalWeight when multiple weights added
+	totalWeight int
+	// Counter for how many weights have been added
+	weightCount int
 }
 
 // NewPNode : create a new physical node with zero capacity and allocated resources
@@ -39,7 +47,28 @@ func NewPNode(node *Node, level int, numResources int) *PNode {
 		allocated:  allocated,
 		numFit:     0,
 		numClaimed: 0,
+		weight:     util.DefaultWeight,
 	}
+}
+
+// GetWeight : get the weight of the node
+func (pNode *PNode) GetWeight() int {
+	return pNode.weight
+}
+
+// SetWeight : set the weight of the node
+func (pNode *PNode) SetWeight(weight int) {
+	pNode.weight = weight
+}
+
+// AddWeight adds weight and calculates the average of the node
+func (pNode *PNode) AddWeight(weight int) {
+	// Update the total weight and the count of weights added
+	pNode.totalWeight += weight
+	pNode.weightCount++
+
+	// Calculate the average weight and round up to the next highest integer
+	pNode.weight = int(math.Ceil(float64(pNode.totalWeight) / float64(pNode.weightCount)))
 }
 
 // GetLevel : get the level of the node
@@ -83,7 +112,7 @@ func (pNode *PNode) GetNumFit() int {
 	return pNode.numFit
 }
 
-// SetNumClaimed : set number can fit
+// SetNumFit : set number can fit
 func (pNode *PNode) SetNumFit(numFit int) {
 	pNode.numFit = numFit
 }
@@ -166,8 +195,77 @@ func (pNode *PNode) CompareClaimed(oNode *PNode, isIncreasing bool) int {
 	return util.BoolValue(below)
 }
 
+// CompareByWeight : Compares nodes by weight
+func (pNode *PNode) CompareByWeight(oNode *PNode, isIncreasing bool) int {
+	if pNode.weight == oNode.weight {
+		return 0
+	}
+	below := pNode.weight < oNode.weight
+	return util.BoolValue(util.Xor(below, isIncreasing))
+}
+
+// CompareFitThenWeights : similar to Compare() but consider CompareByWeight() if equal
+func (pNode *PNode) CompareFitThenWeights(oNode *PNode, isIncreasing bool) int {
+	numFitThis := pNode.GetNumFit()
+	numFitOther := oNode.GetNumFit()
+
+	if numFitThis == numFitOther {
+		return pNode.CompareByWeight(oNode, isIncreasing)
+	}
+	below := numFitThis < numFitOther
+	return util.BoolValue(util.Xor(below, isIncreasing))
+}
+
+// CompareClaimedThenWeights : similar to CompareClaimed() but consider CompareByWeight() if equal
+func (pNode *PNode) CompareClaimedThenWeights(oNode *PNode, isIncreasing bool) int {
+	numClaimedThis := pNode.GetNumClaimed()
+	numClaimedOther := oNode.GetNumClaimed()
+
+	if numClaimedThis == numClaimedOther {
+		return pNode.CompareByWeight(oNode, isIncreasing)
+	}
+	below := numClaimedThis < numClaimedOther
+	return util.BoolValue(below)
+}
+
+// CompareByClaimedWeightProduct : Compares by the product of weight and claimed resources.
+func (pNode *PNode) CompareByClaimedWeightProduct(oNode *PNode, isIncreasing bool) int {
+	numClaimedThis := pNode.weight * pNode.GetNumClaimed()
+	numClaimedOther := oNode.weight * oNode.GetNumClaimed()
+
+	if numClaimedThis == numClaimedOther {
+		return pNode.CompareByWeight(oNode, isIncreasing)
+	}
+	below := numClaimedThis < numClaimedOther
+	return util.BoolValue(below)
+}
+
+// CompareByFitWeightProduct : Compares by the product of weight and number of demands that fit.
+func (pNode *PNode) CompareByFitWeightProduct(oNode *PNode, isIncreasing bool) int {
+	numFitThis := pNode.weight * pNode.GetNumFit()
+	numFitOther := oNode.weight * oNode.GetNumFit()
+
+	if numFitThis == numFitOther {
+		return pNode.Compare(oNode, isIncreasing)
+	}
+	below := numFitThis < numFitOther
+	return util.BoolValue(util.Xor(below, isIncreasing))
+}
+
+// CompareByMinWeightedAvailability : Compares nodes by the minimum weighted available resource.
+func (pNode *PNode) CompareByMinWeightedAvailability(oNode *PNode, isIncreasing bool) int {
+	availableThis := pNode.weight * pNode.GetAvailable().Minimum()
+	availableOther := oNode.weight * oNode.GetAvailable().Minimum()
+
+	if availableThis == availableOther {
+		return pNode.CompareByWeight(oNode, isIncreasing)
+	}
+	below := availableThis < availableOther
+	return util.BoolValue(util.Xor(below, isIncreasing))
+}
+
 // String : a print out of the physical node
 func (pNode *PNode) String() string {
-	return fmt.Sprintf("pNode: ID=%s; level=%d; cap=%v; alloc=%v; numClaimed=%d",
-		pNode.GetID(), pNode.level, pNode.capacity, pNode.allocated, pNode.numClaimed)
+	return fmt.Sprintf("pNode: ID=%s; weight=%v; level=%d; cap=%v; alloc=%v; numClaimed=%d",
+		pNode.GetID(), pNode.weight, pNode.level, pNode.capacity, pNode.allocated, pNode.numClaimed)
 }

@@ -9,4 +9,13 @@ var (
 
 	// default prefix of a node at a level
 	DefaultLevelName string = "level"
+
+	// Default weight
+	DefaultWeight int = 1
+
+	// Max weight
+	MaxWeight int = 100
+
+	// Min weight
+	MinWeight int = 1
 )
